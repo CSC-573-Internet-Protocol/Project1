@@ -1,45 +1,56 @@
 import http2 from "http2";
+import { getStats } from "./statistics.js";
 
-const fetchFile = async (filePath) => {
-  const client = http2.connect("http://localhost:3002");
+const fetchFile = async (filePath, transmissions) => {
+  return new Promise((resolve, reject) => {
+    const client = http2.connect("http://localhost:3002");
+    const req = client.request({ ":path": filePath });
 
-  const req = client.request({ ":path": filePath });
+    let data = "";
+    const start = process.hrtime.bigint();
+    req.setEncoding("utf8");
 
-  let data = "";
-  const start = new Date().getTime();
+    req.on("data", (chunk) => {
+      data += chunk;
+    });
 
-  req.on("data", (chunk) => {
-    data += chunk;
+    req.on("end", () => {
+      const end = process.hrtime.bigint();
+      const duration = Number(end - start) / 1e6;
+      transmissions.push(duration);
+      client.close();
+      resolve();
+    });
+
+    req.on("error", (error) => {
+      console.log(`Request failed: ${error}`);
+      client.close();
+      reject(error);
+    });
+
+    req.end();
   });
+};
 
-  req.on("end", () => {
-    const end = new Date().getTime();
-    console.log(
-      `File ${filePath} received successfully ${data.length / 1024} kB took ${
-        end - start
-      } milliseconds`
-    );
-    client.close();
-  });
+const fetchFiles = async ({ path, iterations, transmissions }) => {
+  for (let i = 0; i < iterations; i++) {
+    await fetchFile(path, transmissions);
+  }
+};
 
-  req.on("error", (error) => {
-    console.log(`Request failed ${error}`);
-  });
-
-  req.end();
+const apiCalls = async () => {
+  for (const item of configureations) {
+    await fetchFiles(item);
+  }
 };
 
 const configureations = [
-  { path: "/A_10kB", iterations: 1000 },
-  { path: "/A_100kB", iterations: 100 },
-  { path: "/A_1MB", iterations: 10 },
-  { path: "/A_10MB", iterations: 1 },
+  { path: "/A_10kB", iterations: 1000, transmissions: [] },
+  { path: "/A_100kB", iterations: 100, transmissions: [] },
+  { path: "/A_1MB", iterations: 10, transmissions: [] },
+  { path: "/A_10MB", iterations: 1, transmissions: [] },
 ];
 
-(async () => {
-  for (const item of configureations) {
-    for (let i = 0; i < item.iterations; i++) {
-      await fetchFile(item.path);
-    }
-  }
-})();
+await apiCalls();
+getStats(configureations);
+console.log(configureations);
