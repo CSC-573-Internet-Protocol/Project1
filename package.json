@@ -4,6 +4,7 @@
     "nodemon": "3.1.9"
   },
   "scripts": {
-    "start": "nodemon server2.js"
+    "http1": "nodemon server.js",
+    "http2": "nodemon server2.js"
   }
 }
