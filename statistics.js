@@ -2,6 +2,9 @@
 export const getStats = (config) => {
   //   console.log(configureations);
   for (let i = 0; i < config.length; i++) {
+    if (i === 0) {
+      config[i].transmissions[0] = config[i].transmissions[1];
+    }
     const { stdDev, mean } = getDeviationAndMean(config[i].transmissions);
     config[i]["mean"] = mean;
     config[i]["stddev"] = stdDev;
