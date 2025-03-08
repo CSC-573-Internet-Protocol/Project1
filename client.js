@@ -7,7 +7,7 @@ const fetchFile = async (fileData) => {
     const start = process.hrtime.bigint();
     const request = http.request(
       {
-        hostname: "localhost",
+        hostname: "192.168.1.118",
         port: 3002,
         path: path,
         method: "GET",
@@ -23,7 +23,8 @@ const fetchFile = async (fileData) => {
             const end = process.hrtime.bigint();
             fileData.totalAppLayerBits = data.length;
             const duration = Number(end - start) / 1e6;
-            transmissions.push(duration);
+            const throughputInKbps = fileData.size / duration;
+            transmissions.push(throughputInKbps);
             resolve();
           } else {
             console.log(res.statusCode, res.statusMessage);
@@ -57,21 +58,49 @@ const apiCalls = async () => {
 
 const configureations = [
   {
-    path: "/A_10kB",
+    path: "/B_10kB",
     iterations: 1000,
     transmissions: [],
     totalAppLayerBits: 0,
+    size: 10,
   },
   {
-    path: "/A_100kB",
+    path: "/B_100kB",
     iterations: 100,
     transmissions: [],
     totalAppLayerBits: 0,
+    size: 100,
   },
-  { path: "/A_1MB", iterations: 10, transmissions: [], totalAppLayerBits: 0 },
-  { path: "/A_10MB", iterations: 1, transmissions: [], totalAppLayerBits: 0 },
+  {
+    path: "/B_1MB",
+    iterations: 10,
+    transmissions: [],
+    totalAppLayerBits: 0,
+    size: 1000,
+  },
+  {
+    path: "/B_10MB",
+    iterations: 1,
+    transmissions: [],
+    totalAppLayerBits: 0,
+    size: 10000,
+  },
 ];
 
 await apiCalls();
 getStats(configureations);
-console.log(configureations);
+
+console.log(
+  "Filename ---- mean thgroughput ---- STD deviation ---- totalApplication layer bits"
+);
+for (const item of configureations) {
+  console.log(
+    item.path +
+      "----" +
+      item.mean +
+      "----" +
+      item.stddev +
+      "----" +
+      item.totalAppLayerBits
+  );
+}

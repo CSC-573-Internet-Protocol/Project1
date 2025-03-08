@@ -1,13 +1,13 @@
 import http2 from "http2";
 import { getStats } from "./statistics.js";
 
-let client = http2.connect("http://localhost:3002", { keepAlive: true });
+let client = http2.connect("http://192.168.1.118:3002", { keepAlive: true });
 
 const fetchFile = async (fileData) => {
   const { path, transmissions } = fileData;
   return new Promise((resolve, reject) => {
     if (client.closed) {
-      client = http2.connect("http://localhost:3002", { keepAlive: true });
+      client = http2.connect("http://192.168.1.118:3002", { keepAlive: true });
     }
 
     const req = client.request({ ":path": path });
@@ -21,9 +21,10 @@ const fetchFile = async (fileData) => {
 
     req.on("end", () => {
       const end = process.hrtime.bigint();
+      fileData.totalAppLayerBits = data.length;
       const duration = Number(end - start) / 1e6;
-      transmissions.push(duration);
-      fileData.totalAppLayerbits = data.length;
+      const throughputInKbps = fileData.size / duration;
+      transmissions.push(throughputInKbps);
       resolve();
     });
 
@@ -48,29 +49,56 @@ const fetchFiles = async (fileData) => {
 };
 
 const apiCalls = async () => {
-  for (const item of configurations) {
+  for (const item of configureations) {
     await fetchFiles(item);
   }
   client.close();
 };
 
-const configurations = [
+const configureations = [
   {
-    path: "/A_10kB",
+    path: "/B_10kB",
     iterations: 1000,
     transmissions: [],
-    totalAppLayerbits: 0,
+    totalAppLayerBits: 0,
+    size: 10,
   },
   {
-    path: "/A_100kB",
+    path: "/B_100kB",
     iterations: 100,
     transmissions: [],
-    totalAppLayerbits: 0,
+    totalAppLayerBits: 0,
+    size: 100,
   },
-  { path: "/A_1MB", iterations: 10, transmissions: [], totalAppLayerbits: 0 },
-  { path: "/A_10MB", iterations: 1, transmissions: [], totalAppLayerbits: 0 },
+  {
+    path: "/B_1MB",
+    iterations: 10,
+    transmissions: [],
+    totalAppLayerBits: 0,
+    size: 1000,
+  },
+  {
+    path: "/B_10MB",
+    iterations: 1,
+    transmissions: [],
+    totalAppLayerBits: 0,
+    size: 10000,
+  },
 ];
 
 await apiCalls();
-getStats(configurations);
-console.log(configurations);
+getStats(configureations);
+console.log(
+  "Filename ---- mean thgroughput ---- STD deviation ---- totalApplication layer bits"
+);
+for (const item of configureations) {
+  console.log(
+    item.path +
+      "----" +
+      item.mean +
+      "----" +
+      item.stddev +
+      "----" +
+      item.totalAppLayerBits
+  );
+}
