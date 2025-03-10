@@ -15,17 +15,26 @@ const fetchFile = async (fileData) => {
     const start = process.hrtime.bigint();
     req.setEncoding("utf8");
 
-    req.on("data", (chunk) => {
-      data += chunk;
-    });
+    req.on("response", (headers) => {
+      let headersSize = 0;
+      for (const [key, value] of Object.entries(headers)) {
+        headersSize +=
+          Buffer.byteLength(String(key)) + Buffer.byteLength(String(value));
+      }
 
-    req.on("end", () => {
-      const end = process.hrtime.bigint();
-      fileData.totalAppLayerBits = data.length;
-      const duration = Number(end - start) / 1e6;
-      const throughputInKbps = fileData.size / duration;
-      transmissions.push(throughputInKbps);
-      resolve();
+      req.on("data", (chunk) => {
+        data += chunk;
+      });
+
+      req.on("end", () => {
+        const end = process.hrtime.bigint();
+        const totalAppLayerData = headersSize + Buffer.byteLength(data);
+        fileData.totalAppLayerBytes = totalAppLayerData;
+        const duration = Number(end - start) / 1e6;
+        const throughputInKbps = (fileData.size * 8) / duration;
+        transmissions.push(throughputInKbps);
+        resolve();
+      });
     });
 
     req.on("error", (error) => {
@@ -60,28 +69,28 @@ const configureations = [
     path: "/B_10kB",
     iterations: 1000,
     transmissions: [],
-    totalAppLayerBits: 0,
+    totalAppLayerBytes: 0,
     size: 10,
   },
   {
     path: "/B_100kB",
     iterations: 100,
     transmissions: [],
-    totalAppLayerBits: 0,
+    totalAppLayerBytes: 0,
     size: 100,
   },
   {
     path: "/B_1MB",
     iterations: 10,
     transmissions: [],
-    totalAppLayerBits: 0,
+    totalAppLayerBytes: 0,
     size: 1000,
   },
   {
     path: "/B_10MB",
     iterations: 1,
     transmissions: [],
-    totalAppLayerBits: 0,
+    totalAppLayerBytes: 0,
     size: 10000,
   },
 ];
@@ -89,7 +98,7 @@ const configureations = [
 await apiCalls();
 getStats(configureations);
 console.log(
-  "Filename ---- mean thgroughput ---- STD deviation ---- totalApplication layer bits"
+  "Filename ---- mean throughput ---- STD deviation ---- totalApplication layer bytes"
 );
 for (const item of configureations) {
   console.log(
@@ -99,6 +108,6 @@ for (const item of configureations) {
       "----" +
       item.stddev +
       "----" +
-      item.totalAppLayerBits
+      item.totalAppLayerBytes
   );
 }

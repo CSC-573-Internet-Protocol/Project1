@@ -14,6 +14,12 @@ const fetchFile = async (fileData) => {
       },
       (res) => {
         let data = "";
+        let headersSize = 0;
+
+        for (const [key, value] of Object.entries(res.headers)) {
+          headersSize += Buffer.byteLength(key) + Buffer.byteLength(value);
+        }
+
         res.on("data", (chunk) => {
           data += chunk;
         });
@@ -21,10 +27,9 @@ const fetchFile = async (fileData) => {
         res.on("end", () => {
           if (res.statusCode === 200) {
             const end = process.hrtime.bigint();
-            fileData.totalAppLayerBits = data.length;
+            fileData.totalAppLayerBytes = headersSize + Buffer.byteLength(data);
             const duration = Number(end - start) / 1e6;
-            const throughputInKbps = fileData.size / duration;
-            transmissions.push(throughputInKbps);
+            transmissions.push(fileData.size / duration);
             resolve();
           } else {
             console.log(res.statusCode, res.statusMessage);
@@ -61,28 +66,28 @@ const configureations = [
     path: "/B_10kB",
     iterations: 1000,
     transmissions: [],
-    totalAppLayerBits: 0,
+    totalAppLayerBytes: 0,
     size: 10,
   },
   {
     path: "/B_100kB",
     iterations: 100,
     transmissions: [],
-    totalAppLayerBits: 0,
+    totalAppLayerBytes: 0,
     size: 100,
   },
   {
     path: "/B_1MB",
     iterations: 10,
     transmissions: [],
-    totalAppLayerBits: 0,
+    totalAppLayerBytes: 0,
     size: 1000,
   },
   {
     path: "/B_10MB",
     iterations: 1,
     transmissions: [],
-    totalAppLayerBits: 0,
+    totalAppLayerBytes: 0,
     size: 10000,
   },
 ];
@@ -91,7 +96,7 @@ await apiCalls();
 getStats(configureations);
 
 console.log(
-  "Filename ---- mean thgroughput ---- STD deviation ---- totalApplication layer bits"
+  "Filename ---- mean throughput ---- STD deviation ---- totalApplication layer bytes"
 );
 for (const item of configureations) {
   console.log(
@@ -101,6 +106,6 @@ for (const item of configureations) {
       "----" +
       item.stddev +
       "----" +
-      item.totalAppLayerBits
+      item.totalAppLayerBytes
   );
 }
